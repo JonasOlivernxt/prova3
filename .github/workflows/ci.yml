@@ -1,0 +1,157 @@
+# Pipeline de Integracao Continua (CI)
+# Projeto: api-estoque
+# Etapas: Analise estatica de codigo -> Analise de formatacao -> Analise estatica de seguranca -> Build -> Testes unitarios -> Testes de integracao -> Criacao da imagem Docker
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch: # botao "Run workflow" na aba Actions
+
+permissions:
+  contents: read
+
+# Cancela a execucao anterior do mesmo PR quando chega um commit novo
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: 1. Analise estatica de codigo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: ESLint
+        run: npx --yes eslint@9 .
+
+  formatacao:
+    name: 2. Analise de formatacao
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Prettier (somente verificacao)
+        run: npx --yes prettier@3 --check .
+
+  seguranca:
+    name: 3. Analise estatica de seguranca
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Seguranca nas dependencias - SCA (npm audit)
+        run: npm audit --audit-level=critical
+      - name: Seguranca no codigo - SAST (Semgrep)
+        run: |
+          pipx install semgrep
+          semgrep scan --config p/javascript --config p/nodejs --config p/secrets --severity ERROR --error --metrics off
+      - name: Seguranca no codigo - iniciar CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript
+      - name: Seguranca no codigo - analisar com CodeQL
+        uses: github/codeql-action/analyze@v4
+
+  build:
+    name: 4. Build
+    needs: [lint, formatacao, seguranca]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Build
+        run: npm run build --if-present
+
+  testes-unitarios:
+    name: 5. Testes unitarios
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://app:app@localhost:5432/app_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Testes unitarios
+        run: node --test --experimental-test-coverage "tests/unit/**/*.test.*"
+      - name: Publicar relatorio de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: coverage/
+          if-no-files-found: ignore
+
+  testes-integracao:
+    name: 6. Testes de integracao
+    needs: testes-unitarios
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://app:app@localhost:5432/app_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Preparar o banco de dados
+        run: psql "postgresql://app:app@localhost:5432/app_test" -f db/migrations/001_criar_tabelas.sql
+      - name: Testes de integracao
+        run: node --test "tests/integration/**/*.test.*"
+
+  imagem:
+    name: 7. Criacao da imagem Docker
+    needs: testes-integracao
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build da imagem
+        run: docker build -t api-estoque:${{ github.sha }} .
+      - name: Listar a imagem criada
+        run: docker images api-estoque
