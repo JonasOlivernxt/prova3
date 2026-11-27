@@ -1,0 +1,13 @@
+# Banco PostgreSQL para desenvolvimento, já com as tabelas criadas
+#   docker compose up -d
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: estoque
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro

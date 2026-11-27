@@ -1,0 +1,20 @@
+{
+  "name": "api-estoque",
+  "version": "1.0.0",
+  "description": "API REST de controle de estoque (produtos e movimentações) com Node.js, Express e PostgreSQL",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  }
+}

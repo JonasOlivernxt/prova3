@@ -1,0 +1,64 @@
+SIMULADO 2 - API ESTOQUE (com fork de outra conta)
+===================================================
+
+A pasta api-estoque faz o papel do repositório do professor. Diferenças em relação à API Biblioteca:
+- código com import (ES Modules) em vez de require
+- testes com o executor do próprio Node (node:test), não Jest
+- conexão com o banco por DATABASE_URL
+- o projeto JÁ TEM .prettierrc (sem ponto e vírgula, aspas duplas): o CI tem que respeitar
+- tabelas criadas pelo arquivo db/migrations/001_criar_tabelas.sql
+- o enunciado (README > Atividade) pede também: testes unitários em Node 20 e 22,
+  e gatilho em push na main além do Pull Request
+
+
+CONTA A (faz o papel do professor) - na máquina 1
+-------------------------------------------------
+1. No GitHub, logado na conta A: + > New repository > nome api-estoque > Public >
+   sem README > Create repository.
+2. Extraia este zip, por exemplo em C:\professor (fica C:\professor\api-estoque).
+3. No PowerShell (troque CONTA_A pelo usuário da conta A):
+
+   cd C:\professor\api-estoque
+   git init
+   git add .
+   git commit -m "Projeto inicial"
+   git branch -M main
+   git remote add origin https://github.com/CONTA_A/api-estoque.git
+   git push -u origin main
+
+4. Mande o link https://github.com/CONTA_A/api-estoque para você mesmo (é o "link do professor").
+
+
+CONTA B (você na prova) - na máquina 2
+--------------------------------------
+Antes: confira se o Git da máquina 2 está com a conta B. Se essa máquina já usou a conta A,
+apague o login salvo: menu Iniciar > "Gerenciador de Credenciais" > Credenciais do Windows >
+remova o item git:https://github.com. No próximo push, o Windows pede o login de novo.
+E configure o nome (troque pelos dados da conta B):
+
+   git config --global user.name "Seu Nome"
+   git config --global user.email "email-da-conta-B"
+
+5. Logado na conta B, abra o link do passo 4 > Fork > Create fork.
+6. No SEU fork: aba Actions > "I understand my workflows, go ahead and enable them".
+7. Clone o SEU fork (a URL tem que ter o usuário da conta B):
+
+   cd C:\prova
+   git clone https://github.com/CONTA_B/api-estoque.git
+
+8. Abra o Gerador (C:\prova\kit-prova-ci\gerador-ci\INICIAR.bat; use o kit novo),
+   Procurar > C:\prova\api-estoque > Analisar projeto. Ele deve mostrar:
+   PostgreSQL, DATABASE_URL, testes com node em tests/unit e tests/integration,
+   a migração .sql, e que o Prettier JÁ tem configuração (ele não cria outra).
+9. Na seção 2, faça o que o enunciado pede:
+   - marque "Rodar também no push na branch principal"
+   - Matriz de versões: 20, 22
+   - marque "Gerar também o workflow de CD" (bônus)
+10. Gravar no projeto (já corrige e verifica) > tudo OK.
+11. Seção 4: Criar branch e commit > Enviar (push) > abra o link do PR.
+12. No PR: troque o "base repository" para CONTA_B/api-estoque (o seu fork), base main <- compare
+    feature/ci > Create pull request. Espere os jobs: o de testes unitários roda duas vezes
+    (Node 20 e Node 22).
+13. Merge > o CD roda e publica a imagem em Packages.
+
+Entrega: link do fork (https://github.com/CONTA_B/api-estoque) e link do PR.
